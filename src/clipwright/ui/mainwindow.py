@@ -7,6 +7,7 @@ from pathlib import Path
 from PyQt6.QtCore import Qt, QThreadPool
 from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QKeySequence
 from PyQt6.QtWidgets import (
+    QButtonGroup,
     QFileDialog,
     QComboBox,
     QHBoxLayout,
@@ -15,6 +16,7 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QRadioButton,
     QSplitter,
     QStatusBar,
     QTabWidget,
@@ -303,15 +305,22 @@ class MainWindow(QMainWindow):
 
         row.addWidget(QLabel("Destination:"))
 
-        self.output_mode_combo = QComboBox()
-        self.output_mode_combo.addItem("Same folder", "same_folder")
-        self.output_mode_combo.addItem("Subfolder", "subfolder")
-        self.output_mode_combo.addItem("Choose folder", "custom")
+        self.output_mode_group = QButtonGroup(self)
+        self.output_mode_buttons: dict[str, QRadioButton] = {}
+        for button_id, (label, mode_value) in enumerate(
+            (
+                ("Same folder", "same_folder"),
+                ("Subfolder", "subfolder"),
+                ("Choose folder", "custom"),
+            )
+        ):
+            button = QRadioButton(label)
+            self.output_mode_group.addButton(button, button_id)
+            self.output_mode_buttons[mode_value] = button
+            row.addWidget(button)
+
         mode = self.config.get("output_mode") or "same_folder"
-        idx = self.output_mode_combo.findData(mode)
-        self.output_mode_combo.setCurrentIndex(idx if idx >= 0 else 0)
-        self.output_mode_combo.currentIndexChanged.connect(self._save_destination_settings)
-        row.addWidget(self.output_mode_combo)
+        self.output_mode_buttons.get(mode, self.output_mode_buttons["same_folder"]).setChecked(True)
 
         self.output_path_input = QLineEdit()
         self.output_path_input.setPlaceholderText("Output folder or subfolder name")
@@ -336,6 +345,8 @@ class MainWindow(QMainWindow):
         conflict = self.config.get("conflict_policy") or "rename"
         conflict_idx = self.conflict_combo.findData(conflict)
         self.conflict_combo.setCurrentIndex(conflict_idx if conflict_idx >= 0 else 0)
+        for button in self.output_mode_buttons.values():
+            button.toggled.connect(self._save_destination_settings)
         self.conflict_combo.currentIndexChanged.connect(self._save_destination_settings)
         row.addWidget(self.conflict_combo)
 
@@ -372,6 +383,19 @@ class MainWindow(QMainWindow):
 
     # --- Output destination ---
 
+    def _output_mode(self) -> str:
+        for mode, button in self.output_mode_buttons.items():
+            if button.isChecked():
+                return mode
+        return "same_folder"
+
+    def _output_mode_label(self) -> str:
+        return {
+            "same_folder": "Same folder",
+            "subfolder": "Subfolder",
+            "custom": "Choose folder",
+        }.get(self._output_mode(), "Same folder")
+
     def _get_output_dir(self, prompt: str = "Choose Output Directory") -> Path | None:
         """Get the output directory based on settings or prompt the user."""
         # Check if "convert in place" is enabled
@@ -391,7 +415,7 @@ class MainWindow(QMainWindow):
         return Path(folder)
 
     def _save_destination_settings(self, *args):
-        mode = self.output_mode_combo.currentData()
+        mode = self._output_mode()
         self.config.set("output_mode", mode)
         if mode == "custom":
             self.config.set("output_dir", self.output_path_input.text())
@@ -405,12 +429,12 @@ class MainWindow(QMainWindow):
             self, "Choose Output Folder", self.config.get("output_dir") or str(Path.home())
         )
         if folder:
-            self.output_mode_combo.setCurrentIndex(self.output_mode_combo.findData("custom"))
+            self.output_mode_buttons["custom"].setChecked(True)
             self.output_path_input.setText(folder)
             self._save_destination_settings()
 
     def _destination_for(self, rec) -> Path | None:
-        mode = self.output_mode_combo.currentData()
+        mode = self._output_mode()
         text = self.output_path_input.text().strip()
         if mode == "same_folder":
             return rec.primary_file.path.parent
@@ -442,7 +466,7 @@ class MainWindow(QMainWindow):
             f"Convert audio for {len(recordings)} file(s)?\n\n"
             f"Needs conversion: {len(needs_conversion)}\n"
             f"Already compatible: {already_ok}\n"
-            f"Destination mode: {self.output_mode_combo.currentText()}\n"
+            f"Destination mode: {self._output_mode_label()}\n"
             f"Conflict policy: {conflict}\n\n"
             + "\n".join(preview_lines)
         )
