@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.ruff_cache/
+*.jpg
+*.mov
+*.mp4
+.cache/

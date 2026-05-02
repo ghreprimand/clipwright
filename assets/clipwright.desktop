@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Clipwright
+Comment=Prepare camera and video files for Linux editing
+Exec=clipwright
+Icon=clipwright
+Categories=AudioVideo;Video;
+Terminal=false
+StartupWMClass=clipwright
