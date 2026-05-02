@@ -9,6 +9,8 @@ from PyQt6.QtGui import QAction, QDragEnterEvent, QDragMoveEvent, QDropEvent, QK
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
+    QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -126,8 +128,6 @@ class MainWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self._setup_destination_bar(layout)
-
         # Main horizontal splitter: file panel | right panel (tabs)
         self.h_splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -174,6 +174,7 @@ class MainWindow(QMainWindow):
         self.v_splitter.addWidget(self.job_panel)
         self.v_splitter.setSizes([500, 150])
 
+        self._setup_operation_tabs(layout)
         layout.addWidget(self.v_splitter)
 
         # Connect signals
@@ -182,6 +183,9 @@ class MainWindow(QMainWindow):
             lambda r: self.right_tabs.setCurrentWidget(self.preview_panel)
         )
         self.file_panel.recordings_loaded.connect(self._on_recordings_loaded)
+        self.file_panel.recordings_loaded.connect(lambda _count: self._update_operation_summary())
+        self.file_panel.tree.itemSelectionChanged.connect(self._update_operation_summary)
+        self.file_panel.tree.itemChanged.connect(self._update_operation_summary)
         self.thumbnail_grid.recording_clicked.connect(self.preview_panel.show_recording)
         self.thumbnail_grid.recording_clicked.connect(
             lambda r: self.right_tabs.setCurrentWidget(self.preview_panel)
@@ -220,56 +224,6 @@ class MainWindow(QMainWindow):
 
         toolbar.addSeparator()
 
-        # Convert selected
-        convert_action = QAction("Convert Audio", self)
-        convert_action.setWhatsThis(
-            "Convert selected files to editing-friendly audio.\n\n"
-            "Re-wraps video files with PCM audio instead of AAC. "
-            "Video stream is copied without re-encoding — no quality loss."
-        )
-        convert_action.triggered.connect(self._convert_selected)
-        toolbar.addAction(convert_action)
-
-        # Merge chapters
-        merge_action = QAction("Merge Chapters", self)
-        merge_action.setWhatsThis(
-            "Merge GoPro chapter files into a single video.\n\n"
-            "Losslessly concatenates split recordings back into one file."
-        )
-        merge_action.triggered.connect(self._merge_selected)
-        toolbar.addAction(merge_action)
-
-        # Transcode
-        transcode_action = QAction("Transcode", self)
-        transcode_action.setWhatsThis(
-            "Re-encode video with different resolution, codec, or quality.\n\n"
-            "Like Handbrake — choose codec, resolution, and quality level."
-        )
-        transcode_action.triggered.connect(self._open_transcode_dialog)
-        toolbar.addAction(transcode_action)
-
-        # Quick trim
-        trim_action = QAction("Trim", self)
-        trim_action.setWhatsThis(
-            "Set rough in/out points to remove unwanted footage.\n\n"
-            "Quick pre-edit trim before importing into your editor."
-        )
-        trim_action.triggered.connect(self._open_trim_dialog)
-        toolbar.addAction(trim_action)
-
-        toolbar.addSeparator()
-
-        # Rename
-        rename_action = QAction("Batch Rename", self)
-        rename_action.setWhatsThis(
-            "Rename files using a template with metadata tokens.\n\n"
-            "Tokens: {date}, {camera}, {clip_id}, {index}, {original}, etc."
-        )
-        rename_action.triggered.connect(self._open_rename_dialog)
-        toolbar.addAction(rename_action)
-
-        toolbar.addSeparator()
-
         remove_action = QAction("Remove", self)
         remove_action.triggered.connect(self.file_panel.remove_selected)
         toolbar.addAction(remove_action)
@@ -297,9 +251,63 @@ class MainWindow(QMainWindow):
         help_action.triggered.connect(QWhatsThis.enterWhatsThisMode)
         toolbar.addAction(help_action)
 
-    def _setup_destination_bar(self, layout: QVBoxLayout):
+    def _setup_operation_tabs(self, layout: QVBoxLayout):
+        self.operation_tabs = QTabWidget()
+        self.operation_tabs.setObjectName("operation_tabs")
+        self.operation_tabs.addTab(self._build_convert_tab(), "Convert Audio")
+        self.operation_tabs.addTab(
+            self._build_action_tab(
+                "Merge split camera chapters into a single file.",
+                "Merge Selected Chapter Groups",
+                self._merge_selected,
+                summary_attr="merge_summary_label",
+            ),
+            "Merge",
+        )
+        self.operation_tabs.addTab(
+            self._build_action_tab(
+                "Change codec, resolution, quality, or container.",
+                "Configure Transcode...",
+                self._open_transcode_dialog,
+                summary_attr="transcode_summary_label",
+            ),
+            "Transcode",
+        )
+        self.operation_tabs.addTab(
+            self._build_action_tab(
+                "Set rough in/out points for one selected recording.",
+                "Open Trim Controls...",
+                self._open_trim_dialog,
+                summary_attr="trim_summary_label",
+            ),
+            "Trim",
+        )
+        self.operation_tabs.addTab(
+            self._build_action_tab(
+                "Preview and apply metadata-based filenames.",
+                "Open Batch Rename...",
+                self._open_rename_dialog,
+                summary_attr="rename_summary_label",
+            ),
+            "Rename",
+        )
+        layout.addWidget(self.operation_tabs)
+        self._update_operation_summary()
+
+    def _build_convert_tab(self) -> QWidget:
+        tab = QWidget()
+        outer = QVBoxLayout(tab)
+        outer.setContentsMargins(8, 8, 8, 8)
+        outer.setSpacing(8)
+
+        self.convert_summary_label = QLabel()
+        self.convert_summary_label.setWordWrap(True)
+        outer.addWidget(self.convert_summary_label)
+
+        settings_group = QGroupBox("Output")
+        settings_layout = QVBoxLayout(settings_group)
+
         row = QHBoxLayout()
-        row.setContentsMargins(8, 6, 8, 6)
         row.setSpacing(8)
 
         row.addWidget(QLabel("Destination:"))
@@ -349,14 +357,86 @@ class MainWindow(QMainWindow):
         self.conflict_combo.currentIndexChanged.connect(self._save_destination_settings)
         row.addWidget(self.conflict_combo)
 
-        wrapper = QWidget()
-        wrapper.setLayout(row)
-        layout.addWidget(wrapper)
+        settings_layout.addLayout(row)
+        outer.addWidget(settings_group)
+
+        details = QGroupBox("Conversion")
+        details_layout = QFormLayout(details)
+        details_layout.addRow("Output container:", QLabel("MOV"))
+        details_layout.addRow("Video:", QLabel("Copied without re-encoding"))
+        details_layout.addRow("Audio:", QLabel("AAC/aac_latm -> PCM signed 16-bit"))
+        outer.addWidget(details)
+
+        action_row = QHBoxLayout()
+        action_row.addStretch(1)
+        convert_btn = QPushButton("Review and Convert Selected")
+        convert_btn.clicked.connect(self._convert_selected)
+        action_row.addWidget(convert_btn)
+        outer.addLayout(action_row)
+
+        return tab
+
+    def _build_action_tab(
+        self,
+        description: str,
+        button_text: str,
+        callback,
+        summary_attr: str,
+    ) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        summary = QLabel()
+        summary.setWordWrap(True)
+        setattr(self, summary_attr, summary)
+        layout.addWidget(summary)
+
+        desc = QLabel(description)
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+        layout.addStretch(1)
+
+        action_row = QHBoxLayout()
+        action_row.addStretch(1)
+        button = QPushButton(button_text)
+        button.clicked.connect(callback)
+        action_row.addWidget(button)
+        layout.addLayout(action_row)
+        return tab
 
     def _setup_statusbar(self):
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Add files, add a folder, or drag media here to get started")
+
+    def _update_operation_summary(self, *args):
+        if not hasattr(self, "file_panel") or not hasattr(self, "convert_summary_label"):
+            return
+
+        selected = self.file_panel.get_selected_recordings()
+        total = len(self.file_panel.recordings)
+        selected_count = len(selected)
+        needs_audio = sum(1 for rec in selected if rec.needs_audio_conversion)
+        mergeable = sum(1 for rec in selected if rec.needs_merge)
+
+        base = f"{selected_count} selected of {total} loaded recording(s)."
+        self.convert_summary_label.setText(
+            f"{base} {needs_audio} selected recording(s) need AAC audio conversion."
+        )
+        self.merge_summary_label.setText(
+            f"{base} {mergeable} selected recording(s) have multiple chapters."
+        )
+        self.transcode_summary_label.setText(
+            f"{base} Transcode will open codec, resolution, quality, and output controls."
+        )
+        self.trim_summary_label.setText(
+            f"{base} Trim uses the first selected recording."
+        )
+        self.rename_summary_label.setText(
+            f"{base} Rename previews new filenames before applying changes."
+        )
 
     def _restore_geometry(self):
         from PyQt6.QtCore import QByteArray

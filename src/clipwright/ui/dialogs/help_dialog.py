@@ -188,16 +188,21 @@ your clips. Click any file or thumbnail to see detailed metadata in the <b>Detai
 including resolution, framerate, duration, codecs, and editing compatibility status.</p>
 <p>Files with AAC audio are flagged in red &mdash; these are good candidates for audio conversion.</p>
 
-<h3>3. Convert audio</h3>
-<p>Select the files you need, choose a destination mode, then click <b>Convert Audio</b>
-(Ctrl+Return). This creates .mov files with PCM audio. Video is copied without
-re-encoding &mdash; no quality loss, and it's fast.</p>
+<h3>3. Choose an operation</h3>
+<p>Use the operation tabs above the file list: <b>Convert Audio</b>, <b>Merge</b>,
+<b>Transcode</b>, <b>Trim</b>, or <b>Rename</b>. Each tab contains the controls and
+execution button for that workflow.</p>
 
-<h3>4. Optional: Merge GoPro chapters</h3>
+<h3>4. Convert audio</h3>
+<p>In the <b>Convert Audio</b> tab, choose the destination mode, suffix, and conflict
+behavior, then review the planned source/output changes before starting. This creates
+.mov files with PCM audio. Video is copied without re-encoding.</p>
+
+<h3>5. Optional: Merge GoPro chapters</h3>
 <p>If you have long GoPro recordings split across multiple files (GH010705, GH020705, etc.),
-click <b>Merge Chapters</b> to join them losslessly into a single file.</p>
+use the <b>Merge</b> tab to join them losslessly into a single file.</p>
 
-<h3>5. Optional: Transcode</h3>
+<h3>6. Optional: Transcode</h3>
 <p>If you need to downscale resolution, change codecs, or reduce file size, use the
 <b>Transcode</b> feature (Ctrl+T). Choose from built-in presets like "Sharing Copy (1080p)"
 or "Archive (H.265 High Quality)", or configure your own settings and save them as a custom

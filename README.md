@@ -46,13 +46,13 @@ Clipwright turns that fix, and the surrounding file-management work, into a desk
 
    Select a row to see metadata and a thumbnail. AAC audio is highlighted so you can quickly see what likely needs conversion.
 
-3. **Choose destination**
+3. **Choose an operation**
 
-   Pick whether outputs go next to the source, into a subfolder, or into a custom folder. Set the output suffix and conflict behavior before starting a job.
+   Use the operation tabs above the file list: **Convert Audio**, **Merge**, **Transcode**, **Trim**, or **Rename**. Each tab shows the controls and execution button for that workflow.
 
-4. **Run an operation**
+4. **Review and run**
 
-   Use **Convert Audio**, **Merge Chapters**, **Transcode**, **Trim**, or **Batch Rename**. Conversion jobs show a preflight summary before they start.
+   For audio conversion, choose the destination mode, suffix, and conflict behavior in the **Convert Audio** tab, then review the planned source/output changes before starting.
 
 5. **Open output**
 
