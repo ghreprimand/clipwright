@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from PyQt6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -65,21 +64,6 @@ class SettingsDialog(QDialog):
         proc_group.setLayout(proc_layout)
         layout.addWidget(proc_group)
 
-        # --- Sidecar Files ---
-        sidecar_group = QGroupBox("Sidecar Files (.THM, .LRV, .WAV)")
-        sidecar_layout = QFormLayout()
-
-        self.sidecar_combo = QComboBox()
-        self.sidecar_combo.addItems([
-            "Ignore (leave in place)",
-            "Copy to output folder",
-            "Delete after conversion",
-        ])
-        sidecar_layout.addRow("When converting:", self.sidecar_combo)
-
-        sidecar_group.setLayout(sidecar_layout)
-        layout.addWidget(sidecar_group)
-
         # --- Rename ---
         rename_group = QGroupBox("Batch Rename")
         rename_layout = QFormLayout()
@@ -106,18 +90,12 @@ class SettingsDialog(QDialog):
         self.open_output_check.setChecked(self.config.get("open_output_folder") == "true")
         self.rename_template.setText(self.config.get("rename_template"))
 
-        sidecar_map = {"ignore": 0, "copy": 1, "delete": 2}
-        self.sidecar_combo.setCurrentIndex(sidecar_map.get(self.config.get("sidecar_action"), 0))
-
     def _save_and_close(self):
         self.config.set("output_dir", self.default_output_dir.text())
         self.config.set("convert_in_place", str(self.convert_in_place.isChecked()).lower())
         self.config.set("parallel_jobs", self.parallel_jobs_spin.value())
         self.config.set("open_output_folder", str(self.open_output_check.isChecked()).lower())
         self.config.set("rename_template", self.rename_template.text())
-
-        sidecar_map = {0: "ignore", 1: "copy", 2: "delete"}
-        self.config.set("sidecar_action", sidecar_map.get(self.sidecar_combo.currentIndex(), "ignore"))
 
         self.config.sync()
         self.accept()

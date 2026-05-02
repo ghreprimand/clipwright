@@ -13,8 +13,8 @@ _DEFAULTS = {
     "output_subfolder": "converted",
     "output_suffix": "_pcm",
     "conflict_policy": "rename",  # rename, overwrite
-    "sidecar_action": "ignore",  # ignore, copy, delete
     "parallel_jobs": 2,
+    "open_output_folder": "false",
     "thumbnail_cache_mb": 200,
     "last_open_dir": "",
     "rename_template": "{date}_{camera}_{clip_id}",

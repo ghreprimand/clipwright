@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 from PyQt6.QtCore import QObject, QRunnable, Qt, QThreadPool, pyqtSignal
@@ -19,11 +20,13 @@ from clipwright.core.converter import convert_recording
 from clipwright.core.merger import merge_chapters
 from clipwright.core.mediafile import Recording
 from clipwright.core.transcoder import TranscodeSettings, transcode
+from clipwright.util.config import Config
 
 
 class JobPanel(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, config: Config | None = None, parent=None):
         super().__init__(parent)
+        self.config = config
         self._setup_ui()
         self._active_jobs = 0
 
@@ -71,6 +74,7 @@ class JobPanel(QWidget):
             runner.signals.finished.connect(card.mark_done)
             runner.signals.error.connect(card.mark_error)
             runner.signals.finished.connect(self._on_job_finished)
+            runner.signals.finished.connect(self._maybe_open_output_folder)
             runner.signals.error.connect(self._on_job_finished)
 
             self._active_jobs += 1
@@ -89,6 +93,7 @@ class JobPanel(QWidget):
             runner.signals.finished.connect(card.mark_done)
             runner.signals.error.connect(card.mark_error)
             runner.signals.finished.connect(self._on_job_finished)
+            runner.signals.finished.connect(self._maybe_open_output_folder)
             runner.signals.error.connect(self._on_job_finished)
 
             self._active_jobs += 1
@@ -112,6 +117,7 @@ class JobPanel(QWidget):
             runner.signals.finished.connect(card.mark_done)
             runner.signals.error.connect(card.mark_error)
             runner.signals.finished.connect(self._on_job_finished)
+            runner.signals.finished.connect(self._maybe_open_output_folder)
             runner.signals.error.connect(self._on_job_finished)
 
             self._active_jobs += 1
@@ -135,6 +141,7 @@ class JobPanel(QWidget):
         runner.signals.finished.connect(card.mark_done)
         runner.signals.error.connect(card.mark_error)
         runner.signals.finished.connect(self._on_job_finished)
+        runner.signals.finished.connect(self._maybe_open_output_folder)
         runner.signals.error.connect(self._on_job_finished)
 
         self._active_jobs += 1
@@ -144,6 +151,10 @@ class JobPanel(QWidget):
     def _on_job_finished(self, *args):
         self._active_jobs = max(0, self._active_jobs - 1)
         self._update_header()
+
+    def _maybe_open_output_folder(self, output_path: str):
+        if self.config and self.config.get("open_output_folder") == "true":
+            subprocess.Popen(["xdg-open", str(Path(output_path).parent)])
 
     def _update_header(self):
         if self._active_jobs > 0:
@@ -223,7 +234,6 @@ class JobCard(QWidget):
 
     def _open_output_folder(self):
         if self._output_path:
-            import subprocess
             folder = str(Path(self._output_path).parent)
             subprocess.Popen(["xdg-open", folder])
 

@@ -1,6 +1,6 @@
 # Clipwright
 
-Clipwright is a Linux desktop utility for preparing camera and video files before editing. It is built around a practical workflow: add files or folders, inspect the media, choose an output destination, and run conversion jobs that make the files easier to use in Linux editing tools.
+Clipwright is a Linux desktop utility for preparing camera and video files before editing. It is built around a practical workflow: add files or folders, inspect the media, choose an operation tab, configure that operation, and run jobs that make the files easier to use in Linux editing tools.
 
 The original itch was DaVinci Resolve on Linux and its AAC audio limitations, but Clipwright is not only a Resolve helper. It is a general media-prep workbench for remuxing, audio conversion, camera chapter handling, transcodes, trims, and batch organization.
 
@@ -60,9 +60,13 @@ Clipwright turns that fix, and the surrounding file-management work, into a desk
 
 ## Main Tools
 
+The top toolbar is for source/list management: adding media, removing rows, clearing the current list, and selecting or deselecting loaded recordings. Media operations live in tabs above the file list.
+
 ### Convert Audio
 
 Converts the audio stream to PCM while copying the video stream. This avoids generation loss and is usually much faster than a full transcode.
+
+The Convert Audio tab includes destination mode, output path or subfolder, suffix, and conflict policy controls. Before jobs start, Clipwright shows a review dialog with source paths, detected codecs, planned action, and output paths.
 
 Default output:
 
@@ -155,6 +159,8 @@ Or from the checkout:
 ./clipwright.sh
 ```
 
+The launcher clears inherited `QT_PLUGIN_PATH` so PyQt6 uses its bundled Qt plugins instead of accidentally mixing with system Qt plugins.
+
 ## Development
 
 ```bash
@@ -165,6 +171,8 @@ python -m py_compile $(rg --files src -g '*.py')
 ```
 
 The Python package is `clipwright`. Runtime settings are stored under `~/.config/clipwright/`, and thumbnails are cached under `~/.cache/clipwright/`.
+
+Settings currently cover the default output folder, convert-next-to-original behavior, parallel job count, auto-open completed output folders, and the default rename template.
 
 ## Project Structure
 
@@ -196,7 +204,7 @@ src/clipwright/
 
 - Better stream-level inspection
 - Job cancel/retry/log controls
-- More explicit output filename preview for all operations
+- Explicit output filename preview for merge, transcode, trim, and rename execution paths
 - Audio extraction presets
 - Proxy/intermediate workflow polish
 - More conflict policies, including skip and ask

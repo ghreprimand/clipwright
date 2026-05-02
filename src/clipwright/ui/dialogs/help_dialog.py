@@ -18,20 +18,22 @@ WHATSTHIS = {
     "open_folder": (
         "Add a folder containing camera or video files.\n"
         "Clipwright scans GoPro, DJI Action, and common video files, detects codecs, "
-        "and group GoPro chapters automatically."
+        "and groups GoPro chapters automatically."
+    ),
+    "open_files": (
+        "Add one or more individual video files.\n\n"
+        "Use this when you want to import specific clips instead of scanning a whole folder."
     ),
     "convert": (
-        "Convert selected files to editing-friendly audio.\n\n"
-        "This re-wraps your video files with PCM audio instead of AAC, "
-        "which some Linux editing workflows cannot decode. The video stream "
-        "is copied without re-encoding — no quality loss, and it's fast.\n\n"
-        "Use the destination controls in the main window to choose where "
-        "outputs go and how filename conflicts are handled."
+        "Convert Audio workflow.\n\n"
+        "Choose where outputs go, set the filename suffix and conflict policy, then review "
+        "the exact source/output plan before starting. Video is copied without re-encoding; "
+        "AAC audio is converted to PCM signed 16-bit audio in a MOV container."
     ),
     "merge": (
-        "Merge GoPro chapter files into a single video.\n\n"
-        "GoPro splits long recordings into ~4GB chunks. This losslessly "
-        "concatenates them back into one file using the ffmpeg concat demuxer."
+        "Merge workflow.\n\n"
+        "Joins selected multi-chapter recordings into single files without re-encoding. "
+        "This is mainly for cameras such as GoPro that split long recordings into chunks."
     ),
     "transcode": (
         "Re-encode video with different resolution, codec, or quality.\n\n"
@@ -49,25 +51,39 @@ WHATSTHIS = {
         "The default template can be changed in Settings."
     ),
     "trim": (
-        "Set rough in/out points to remove unwanted footage.\n\n"
-        "This is a quick pre-edit trim — cut dead footage before it even "
-        "touches your editor. Uses fast seeking (stream copy, no re-encoding). "
+        "Trim workflow.\n\n"
+        "Set rough in/out points for the first selected recording. Uses stream copy, "
+        "so it is fast and does not re-encode when the source allows it. "
         "Quick buttons let you skip the first/last 5 or 10 seconds."
     ),
     "settings": (
         "Configure application preferences.\n\n"
         "Default output directory, convert-in-place mode, number of parallel "
-        "jobs, sidecar file handling (.THM/.LRV/.WAV), default rename template, "
+        "jobs, default rename template, "
         "and whether to auto-open the output folder when jobs finish."
     ),
     "file_panel": (
         "File list showing all detected recordings.\n\n"
         "Select rows for focused operations or use checkboxes for batch operations. "
-        "GoPro chapter groups "
-        "are shown as expandable tree nodes. The Audio column shows red "
-        "if the file needs audio conversion.\n\n"
+        "GoPro chapter groups are shown as expandable tree nodes. The Audio column "
+        "shows red if a file likely needs audio conversion.\n\n"
         "Right-click any file for a context menu with all available actions."
     ),
+    "operations": (
+        "Operation tabs.\n\n"
+        "Choose Convert Audio, Merge, Transcode, Trim, or Rename. Each tab shows the "
+        "current selection context plus the controls and run button for that workflow."
+    ),
+    "convert_output": (
+        "Convert Audio output controls.\n\n"
+        "Same folder writes next to each source file. Subfolder writes into a named "
+        "folder beside each source. Choose folder writes all outputs into one custom "
+        "folder. Suffix and conflict policy control output filenames."
+    ),
+    "remove": "Remove selected rows from the current list without deleting files from disk.",
+    "clear": "Clear the current list. This does not delete source files or completed outputs.",
+    "select_all": "Check every loaded top-level recording for batch operations.",
+    "select_none": "Uncheck every loaded recording.",
     "preview_panel": (
         "Shows a thumbnail and metadata for the selected recording.\n\n"
         "Displays resolution, framerate, duration, codecs, and editing compatibility status."
@@ -156,22 +172,24 @@ the video stream untouched when possible &mdash; fast and lossless for video.</p
 
 <h3>Features</h3>
 <ul>
+<li><b>Operation Tabs</b> &mdash; Convert Audio, Merge, Transcode, Trim, and Rename workflows</li>
 <li><b>Convert Audio</b> &mdash; batch AAC-to-PCM audio conversion</li>
 <li><b>Merge Chapters</b> &mdash; join GoPro's split chapter files into one</li>
 <li><b>Transcode</b> &mdash; re-encode to different resolution/codec/quality (like Handbrake)</li>
 <li><b>Preset Profiles</b> &mdash; 8 built-in presets + save your own custom presets</li>
-<li><b>Batch Rename</b> &mdash; template-based file renaming with metadata tokens</li>
+<li><b>Rename</b> &mdash; template-based file renaming with metadata tokens</li>
 <li><b>Quick Trim</b> &mdash; set in/out points to remove junk footage</li>
 <li><b>Camera Detection</b> &mdash; auto-identifies GoPro and DJI Action 4 files</li>
 <li><b>Thumbnail Grid</b> &mdash; visual clip identification with AAC badges</li>
 <li><b>Right-Click Menus</b> &mdash; quick access to all operations per file</li>
 <li><b>Job Queue</b> &mdash; parallel processing with progress bars and "Open Folder" on completion</li>
-<li><b>Settings</b> &mdash; default output dir, convert-in-place, parallel jobs, sidecar handling</li>
+<li><b>Settings</b> &mdash; default output dir, convert-in-place, parallel jobs, auto-open behavior, and rename template</li>
 </ul>
 
 <h3>Contextual Help</h3>
 <p>Click the <b>?</b> button in the toolbar (or press <b>Shift+F1</b>) then click on any
-part of the app to see a description of what it does.</p>
+part of the app to see a description of what it does. Operation tabs, output controls,
+file lists, preview panels, and the job queue expose targeted help.</p>
 """
 
 _HELP_WORKFLOW = """
@@ -208,22 +226,22 @@ use the <b>Merge</b> tab to join them losslessly into a single file.</p>
 or "Archive (H.265 High Quality)", or configure your own settings and save them as a custom
 preset for next time.</p>
 
-<h3>6. Optional: Quick Trim</h3>
+<h3>7. Optional: Quick Trim</h3>
 <p>Use <b>Trim</b> to set in/out points and remove dead footage. Quick buttons let you
 skip the first or last 5/10 seconds. Uses stream copy so it's fast.</p>
 
-<h3>7. Optional: Batch Rename</h3>
-<p>Use <b>Batch Rename</b> (F2) to organize files with meaningful names. Templates support
+<h3>8. Optional: Rename</h3>
+<p>Use <b>Rename</b> (F2) to organize files with meaningful names. Templates support
 tokens like {date}, {camera}, {clip_id}, and {index} for sequential numbering. A live preview
 shows exactly what the filenames will look like.</p>
 
-<h3>8. Open output &amp; import to your editor</h3>
+<h3>9. Open output &amp; import to your editor</h3>
 <p>Click the <b>Open Folder</b> button on any completed job to open the output directory in
 your file manager. Drag the converted files into your editor.</p>
 
 <h3>Right-click shortcut</h3>
 <p>You can also right-click any file in the list for quick access to Convert, Merge, Transcode,
-Trim, Rename, and Open Containing Folder &mdash; without going through the toolbar.</p>
+Trim, Rename, and Open Containing Folder.</p>
 """
 
 _HELP_SHORTCUTS = """
@@ -247,7 +265,7 @@ _HELP_SHORTCUTS = """
 <li>Merge Chapters (if applicable)</li>
 <li>Transcode</li>
 <li>Quick Trim</li>
-<li>Batch Rename</li>
+<li>Rename</li>
 <li>Open Containing Folder</li>
 </ul>
 """

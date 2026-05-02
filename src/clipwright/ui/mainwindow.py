@@ -30,6 +30,7 @@ from clipwright.ui.file_dialogs import choose_directory, choose_video_files
 from clipwright.ui.filepanel import FilePanel
 from clipwright.ui.jobpanel import JobPanel
 from clipwright.ui.previewpanel import PreviewPanel
+from clipwright.ui.dialogs.help_dialog import WHATSTHIS
 from clipwright.ui.widgets.thumbnail import ThumbnailGrid
 from clipwright.util.config import Config
 
@@ -132,30 +133,18 @@ class MainWindow(QMainWindow):
         self.h_splitter = QSplitter(Qt.Orientation.Horizontal)
 
         self.file_panel = FilePanel(self)
-        self.file_panel.setWhatsThis(
-            "File list showing all detected recordings.\n\n"
-            "Checkboxes select files for batch operations. GoPro chapter groups "
-            "are shown as expandable tree nodes. The Audio column shows red "
-            "if the file needs audio conversion for Linux editing workflows."
-        )
+        self.file_panel.setWhatsThis(WHATSTHIS["file_panel"])
         self.h_splitter.addWidget(self.file_panel)
 
         # Right side: tabbed preview + thumbnail grid
         self.right_tabs = QTabWidget()
 
         self.preview_panel = PreviewPanel(self)
-        self.preview_panel.setWhatsThis(
-            "Shows a thumbnail and metadata for the selected recording.\n\n"
-            "Displays resolution, framerate, duration, codecs, and compatibility status."
-        )
+        self.preview_panel.setWhatsThis(WHATSTHIS["preview_panel"])
         self.right_tabs.addTab(self.preview_panel, "Details")
 
         self.thumbnail_grid = ThumbnailGrid(self)
-        self.thumbnail_grid.setWhatsThis(
-            "Visual grid of video thumbnails for all loaded recordings.\n\n"
-            "Click any thumbnail to view its details in the Details tab. "
-            "Files with AAC audio show a red 'AAC' badge."
-        )
+        self.thumbnail_grid.setWhatsThis(WHATSTHIS["thumbnail_grid"])
         self.right_tabs.addTab(self.thumbnail_grid, "Thumbnails")
 
         self.h_splitter.addWidget(self.right_tabs)
@@ -165,12 +154,8 @@ class MainWindow(QMainWindow):
         self.v_splitter = QSplitter(Qt.Orientation.Vertical)
         self.v_splitter.addWidget(self.h_splitter)
 
-        self.job_panel = JobPanel(self)
-        self.job_panel.setWhatsThis(
-            "Shows active and completed conversion/transcode jobs.\n\n"
-            "Each job displays a progress bar and status. Jobs run in parallel "
-            "(configurable in Settings). Click 'Clear Completed' to clean up."
-        )
+        self.job_panel = JobPanel(self.config, self)
+        self.job_panel.setWhatsThis(WHATSTHIS["job_panel"])
         self.v_splitter.addWidget(self.job_panel)
         self.v_splitter.setSizes([500, 150])
 
@@ -206,29 +191,25 @@ class MainWindow(QMainWindow):
 
         # Add files
         add_files_action = QAction("Add Files", self)
-        add_files_action.setWhatsThis(
-            "Add one or more video files to the media list.\n"
-            "Dropped files are imported directly instead of scanning their parent folders."
-        )
+        add_files_action.setWhatsThis(WHATSTHIS["open_files"])
         add_files_action.triggered.connect(self._open_files)
         toolbar.addAction(add_files_action)
 
         # Add folder
         add_folder_action = QAction("Add Folder", self)
-        add_folder_action.setWhatsThis(
-            "Add a folder containing camera or video files.\n"
-            "Clipwright scans supported media files and groups camera chapters automatically."
-        )
+        add_folder_action.setWhatsThis(WHATSTHIS["open_folder"])
         add_folder_action.triggered.connect(self._open_folder)
         toolbar.addAction(add_folder_action)
 
         toolbar.addSeparator()
 
         remove_action = QAction("Remove", self)
+        remove_action.setWhatsThis(WHATSTHIS["remove"])
         remove_action.triggered.connect(self.file_panel.remove_selected)
         toolbar.addAction(remove_action)
 
         clear_action = QAction("Clear", self)
+        clear_action.setWhatsThis(WHATSTHIS["clear"])
         clear_action.triggered.connect(self.file_panel.clear)
         toolbar.addAction(clear_action)
 
@@ -236,10 +217,13 @@ class MainWindow(QMainWindow):
 
         # Select all / none
         select_all_action = QAction("Select All", self)
+        select_all_action.setShortcut(QKeySequence("Ctrl+A"))
+        select_all_action.setWhatsThis(WHATSTHIS["select_all"])
         select_all_action.triggered.connect(self.file_panel.select_all)
         toolbar.addAction(select_all_action)
 
         deselect_action = QAction("Select None", self)
+        deselect_action.setWhatsThis(WHATSTHIS["select_none"])
         deselect_action.triggered.connect(self.file_panel.select_none)
         toolbar.addAction(deselect_action)
 
@@ -254,6 +238,7 @@ class MainWindow(QMainWindow):
     def _setup_operation_tabs(self, layout: QVBoxLayout):
         self.operation_tabs = QTabWidget()
         self.operation_tabs.setObjectName("operation_tabs")
+        self.operation_tabs.setWhatsThis(WHATSTHIS["operations"])
         self.operation_tabs.addTab(self._build_convert_tab(), "Convert Audio")
         self.operation_tabs.addTab(
             self._build_action_tab(
@@ -261,6 +246,8 @@ class MainWindow(QMainWindow):
                 "Merge Selected Chapter Groups",
                 self._merge_selected,
                 summary_attr="merge_summary_label",
+                button_attr="merge_button",
+                whatsthis_key="merge",
             ),
             "Merge",
         )
@@ -270,6 +257,8 @@ class MainWindow(QMainWindow):
                 "Configure Transcode...",
                 self._open_transcode_dialog,
                 summary_attr="transcode_summary_label",
+                button_attr="transcode_button",
+                whatsthis_key="transcode",
             ),
             "Transcode",
         )
@@ -279,6 +268,8 @@ class MainWindow(QMainWindow):
                 "Open Trim Controls...",
                 self._open_trim_dialog,
                 summary_attr="trim_summary_label",
+                button_attr="trim_button",
+                whatsthis_key="trim",
             ),
             "Trim",
         )
@@ -288,6 +279,8 @@ class MainWindow(QMainWindow):
                 "Open Batch Rename...",
                 self._open_rename_dialog,
                 summary_attr="rename_summary_label",
+                button_attr="rename_button",
+                whatsthis_key="rename",
             ),
             "Rename",
         )
@@ -296,6 +289,7 @@ class MainWindow(QMainWindow):
 
     def _build_convert_tab(self) -> QWidget:
         tab = QWidget()
+        tab.setWhatsThis(WHATSTHIS["convert"])
         outer = QVBoxLayout(tab)
         outer.setContentsMargins(8, 8, 8, 8)
         outer.setSpacing(8)
@@ -305,6 +299,7 @@ class MainWindow(QMainWindow):
         outer.addWidget(self.convert_summary_label)
 
         settings_group = QGroupBox("Output")
+        settings_group.setWhatsThis(WHATSTHIS["convert_output"])
         settings_layout = QVBoxLayout(settings_group)
 
         row = QHBoxLayout()
@@ -370,7 +365,9 @@ class MainWindow(QMainWindow):
         action_row = QHBoxLayout()
         action_row.addStretch(1)
         convert_btn = QPushButton("Review and Convert Selected")
+        convert_btn.setWhatsThis(WHATSTHIS["convert"])
         convert_btn.clicked.connect(self._convert_selected)
+        self.convert_button = convert_btn
         action_row.addWidget(convert_btn)
         outer.addLayout(action_row)
 
@@ -382,8 +379,11 @@ class MainWindow(QMainWindow):
         button_text: str,
         callback,
         summary_attr: str,
+        button_attr: str,
+        whatsthis_key: str,
     ) -> QWidget:
         tab = QWidget()
+        tab.setWhatsThis(WHATSTHIS[whatsthis_key])
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
@@ -401,7 +401,9 @@ class MainWindow(QMainWindow):
         action_row = QHBoxLayout()
         action_row.addStretch(1)
         button = QPushButton(button_text)
+        button.setWhatsThis(WHATSTHIS[whatsthis_key])
         button.clicked.connect(callback)
+        setattr(self, button_attr, button)
         action_row.addWidget(button)
         layout.addLayout(action_row)
         return tab
@@ -437,6 +439,14 @@ class MainWindow(QMainWindow):
         self.rename_summary_label.setText(
             f"{base} Rename previews new filenames before applying changes."
         )
+
+        if hasattr(self, "convert_button"):
+            has_selection = selected_count > 0
+            self.convert_button.setEnabled(has_selection)
+            self.merge_button.setEnabled(mergeable > 0)
+            self.transcode_button.setEnabled(has_selection)
+            self.trim_button.setEnabled(has_selection)
+            self.rename_button.setEnabled(has_selection)
 
     def _restore_geometry(self):
         from PyQt6.QtCore import QByteArray
