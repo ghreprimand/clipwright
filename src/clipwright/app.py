@@ -20,18 +20,13 @@ _crash_log = None
 
 
 def _configure_qt_platform():
-    """Prefer XCB on Wayland sessions where Qt Wayland is unstable."""
+    """Keep PyQt's bundled Qt from loading incompatible system plugins."""
+    if os.environ.get("CLIPWRIGHT_KEEP_QT_PLUGIN_PATH") != "1":
+        os.environ.pop("QT_PLUGIN_PATH", None)
+
     requested_platform = os.environ.get("CLIPWRIGHT_QT_PLATFORM")
     if requested_platform:
         os.environ["QT_QPA_PLATFORM"] = requested_platform
-        return
-
-    current_platform = os.environ.get("QT_QPA_PLATFORM", "")
-    has_xwayland = bool(os.environ.get("DISPLAY"))
-    is_wayland = os.environ.get("XDG_SESSION_TYPE") == "wayland" or "wayland" in current_platform
-
-    if is_wayland and has_xwayland:
-        os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
 def _enable_crash_logging():

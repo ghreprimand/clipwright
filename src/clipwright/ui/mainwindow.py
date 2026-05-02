@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QThreadPool
-from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QKeySequence
+from PyQt6.QtGui import QAction, QDragEnterEvent, QDragMoveEvent, QDropEvent, QKeySequence
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QComboBox,
@@ -673,6 +673,10 @@ class MainWindow(QMainWindow):
     # --- Drag and Drop ---
 
     def dragEnterEvent(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def dragMoveEvent(self, event: QDragMoveEvent):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 

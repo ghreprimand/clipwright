@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, QObject, QRunnable, Qt, QThreadPool, pyqtSignal
-from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QAction, QDragEnterEvent, QDragMoveEvent, QDropEvent
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QHeaderView,
@@ -291,6 +291,10 @@ class FilePanel(QWidget):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 
+    def dragMoveEvent(self, event: QDragMoveEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
     def dropEvent(self, event: QDropEvent):
         paths = [
             Path(url.toLocalFile())
@@ -304,6 +308,9 @@ class FilePanel(QWidget):
     def eventFilter(self, watched, event):
         if watched is self.tree.viewport():
             if event.type() == QEvent.Type.DragEnter and event.mimeData().hasUrls():
+                event.acceptProposedAction()
+                return True
+            if event.type() == QEvent.Type.DragMove and event.mimeData().hasUrls():
                 event.acceptProposedAction()
                 return True
             if event.type() == QEvent.Type.Drop and event.mimeData().hasUrls():
