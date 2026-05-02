@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -17,6 +16,7 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
 )
 
+from clipwright.ui.file_dialogs import choose_directory
 from clipwright.util.config import Config
 
 
@@ -123,6 +123,6 @@ class SettingsDialog(QDialog):
         self.accept()
 
     def _browse_output_dir(self):
-        folder = QFileDialog.getExistingDirectory(self, "Choose Default Output Directory")
+        folder = choose_directory(self, "Choose Default Output Directory")
         if folder:
             self.default_output_dir.setText(folder)

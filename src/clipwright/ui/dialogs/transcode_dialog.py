@@ -10,7 +10,6 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QFileDialog,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -41,6 +40,7 @@ from clipwright.core.transcoder import (
     VideoCodec,
     estimate_output_size,
 )
+from clipwright.ui.file_dialogs import choose_directory
 from clipwright.util.config import Config
 
 
@@ -271,7 +271,7 @@ class TranscodeDialog(QDialog):
         self._update_estimate()
 
     def _browse_output(self):
-        folder = QFileDialog.getExistingDirectory(self, "Choose Output Directory")
+        folder = choose_directory(self, "Choose Output Directory")
         if folder:
             self.output_dir_input.setText(folder)
 

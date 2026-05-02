@@ -8,7 +8,6 @@ from PyQt6.QtCore import Qt, QThreadPool
 from PyQt6.QtGui import QAction, QDragEnterEvent, QDropEvent, QKeySequence
 from PyQt6.QtWidgets import (
     QButtonGroup,
-    QFileDialog,
     QComboBox,
     QHBoxLayout,
     QLabel,
@@ -26,6 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+from clipwright.ui.file_dialogs import choose_directory, choose_video_files
 from clipwright.ui.filepanel import FilePanel
 from clipwright.ui.jobpanel import JobPanel
 from clipwright.ui.previewpanel import PreviewPanel
@@ -409,7 +409,7 @@ class MainWindow(QMainWindow):
 
         # Ask the user
         last_dir = self.config.get("last_open_dir") or str(Path.home())
-        folder = QFileDialog.getExistingDirectory(self, prompt, last_dir)
+        folder = choose_directory(self, prompt, last_dir)
         if not folder:
             return None
         return Path(folder)
@@ -425,7 +425,7 @@ class MainWindow(QMainWindow):
         self.config.set("conflict_policy", self.conflict_combo.currentData())
 
     def _browse_destination(self):
-        folder = QFileDialog.getExistingDirectory(
+        folder = choose_directory(
             self, "Choose Output Folder", self.config.get("output_dir") or str(Path.home())
         )
         if folder:
@@ -483,9 +483,7 @@ class MainWindow(QMainWindow):
 
     def _open_folder(self):
         last_dir = self.config.get("last_open_dir") or str(Path.home())
-        folder = QFileDialog.getExistingDirectory(
-            self, "Open Camera Folder", last_dir
-        )
+        folder = choose_directory(self, "Open Camera Folder", last_dir)
         if folder:
             self.config.set("last_open_dir", folder)
             self.file_panel.load_directory(Path(folder))
@@ -493,12 +491,7 @@ class MainWindow(QMainWindow):
 
     def _open_files(self):
         last_dir = self.config.get("last_open_dir") or str(Path.home())
-        files, _selected_filter = QFileDialog.getOpenFileNames(
-            self,
-            "Add Video Files",
-            last_dir,
-            "Video Files (*.mp4 *.mov *.mkv *.avi *.m4v *.mts *.m2ts *.webm);;All Files (*)",
-        )
+        files = choose_video_files(self, "Add Video Files", last_dir)
         if files:
             paths = [Path(f) for f in files]
             self.config.set("last_open_dir", str(paths[0].parent))

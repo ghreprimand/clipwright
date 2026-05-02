@@ -6,7 +6,7 @@ import signal
 import sys
 import traceback
 
-from PyQt6.QtCore import QThreadPool
+from PyQt6.QtCore import Qt, QThreadPool
 from PyQt6.QtWidgets import QApplication
 
 from clipwright import __version__
@@ -52,6 +52,8 @@ def main():
 
     # Allow Ctrl+C from terminal to kill the app
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs, True)
 
     app = QApplication(sys.argv)
     app.setApplicationName("Clipwright")
