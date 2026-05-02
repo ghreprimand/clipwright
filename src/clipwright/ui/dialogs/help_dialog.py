@@ -17,7 +17,7 @@ from PyQt6.QtWidgets import (
 WHATSTHIS = {
     "open_folder": (
         "Add a folder containing camera or video files.\n"
-        "Clipwright scans GoPro, DJI, and common video files, detects codecs, "
+        "Clipwright scans GoPro, DJI Action, and common video files, detects codecs, "
         "and group GoPro chapters automatically."
     ),
     "convert": (
@@ -179,7 +179,7 @@ _HELP_WORKFLOW = """
 
 <h3>1. Import footage</h3>
 <p>Add individual files, add a folder, or drag-and-drop files/folders onto the app.
-Clipwright scans the selected media, detects camera types (GoPro, DJI Action 4), reads
+Clipwright scans the selected media, detects camera types (GoPro, DJI Action), reads
 metadata via ffprobe, and groups GoPro chapter files automatically.</p>
 
 <h3>2. Review files</h3>

@@ -115,8 +115,9 @@ Clipwright currently scans common video/camera extensions:
 - `.m2ts`
 - `.webm`
 - GoPro sidecars: `.lrv`, `.thm`, `.wav`
+- DJI proxy sidecars: `.lrf`
 
-It recognizes GoPro and DJI Action naming patterns, but unknown camera files still load as normal video files.
+It recognizes GoPro and DJI Action naming patterns, including DJI files shaped like `DJI_20250816174012_0001_D.MP4` with matching `.LRF` proxy files. Unknown camera files still load as normal video files.
 
 ## Requirements
 

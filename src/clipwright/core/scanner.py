@@ -16,14 +16,18 @@ _GOPRO_RE = re.compile(
     r"^G([HLXT])(\d{2})(\d{4})\.(MP4|LRV|THM|WAV)$", re.IGNORECASE
 )
 
-# DJI Action 4 naming: DJI_NNNN.MP4 or DJI_20240101_123456_NNNN.MP4
+# DJI Action naming:
+# - DJI_NNNN.MP4
+# - DJI_YYYYMMDD_HHMMSS_NNNN.MP4
+# - DJI_YYYYMMDDHHMMSS_NNNN_D.MP4
 _DJI_RE = re.compile(
-    r"^DJI_(?:(\d{8}_\d{6})_)?(\d{4})\.(MP4|mp4)$"
+    r"^DJI_(?:(\d{8}_\d{6}|\d{14})_)?(\d{4})(?:_[A-Z])?\.(MP4|MOV|LRF)$",
+    re.IGNORECASE,
 )
 
 # File extensions we care about
 _VIDEO_EXTS = {".mp4", ".mov", ".avi", ".mkv", ".m4v", ".mts", ".m2ts", ".webm"}
-_SIDECAR_EXTS = {".lrv", ".thm", ".wav"}
+_SIDECAR_EXTS = {".lrv", ".lrf", ".thm", ".wav", ".srt"}
 _ALL_EXTS = _VIDEO_EXTS | _SIDECAR_EXTS
 
 
@@ -136,8 +140,9 @@ def _detect_from_filename(filename: str) -> tuple[CameraType, FileRole, int, str
     # Try DJI pattern
     m = _DJI_RE.match(filename)
     if m:
-        _datetime_str, clip_num, _ext = m.groups()
-        return CameraType.DJI_ACTION4, FileRole.VIDEO, 1, clip_num
+        _datetime_str, clip_num, ext = m.groups()
+        role = FileRole.LRV if ext.lower() == "lrf" else FileRole.VIDEO
+        return CameraType.DJI_ACTION4, role, 1, clip_num
 
     # Unknown camera — treat as video if it's a video extension
     suffix = Path(filename).suffix.lower()
@@ -218,21 +223,23 @@ def _group_into_recordings(files: list[MediaFile]) -> list[Recording]:
     """Group MediaFiles into Recording objects.
 
     GoPro files are grouped by clip_id (chapters merged).
-    DJI and unknown files each become their own Recording.
+    DJI files are grouped by clip_id so proxy sidecars stay attached.
+    Unknown files each become their own Recording.
     """
-    gopro_groups: dict[str, dict] = {}
+    camera_groups: dict[tuple[CameraType, str], dict] = {}
     recordings: list[Recording] = []
 
     for mf in files:
-        if mf.camera == CameraType.GOPRO:
-            if mf.clip_id not in gopro_groups:
-                gopro_groups[mf.clip_id] = {"chapters": [], "sidecars": []}
+        if mf.camera in (CameraType.GOPRO, CameraType.DJI_ACTION4):
+            key = (mf.camera, mf.clip_id)
+            if key not in camera_groups:
+                camera_groups[key] = {"chapters": [], "sidecars": []}
             if mf.file_role == FileRole.VIDEO:
-                gopro_groups[mf.clip_id]["chapters"].append(mf)
+                camera_groups[key]["chapters"].append(mf)
             else:
-                gopro_groups[mf.clip_id]["sidecars"].append(mf)
+                camera_groups[key]["sidecars"].append(mf)
         else:
-            # Non-GoPro: each video is its own recording
+            # Unknown camera: each video is its own recording
             if mf.file_role == FileRole.VIDEO:
                 recordings.append(Recording(
                     clip_id=mf.clip_id,
@@ -240,14 +247,14 @@ def _group_into_recordings(files: list[MediaFile]) -> list[Recording]:
                     chapters=[mf],
                 ))
 
-    # Build GoPro recordings from groups
-    for clip_id, group in gopro_groups.items():
+    # Build camera recordings from groups
+    for (camera, clip_id), group in camera_groups.items():
         chapters = sorted(group["chapters"], key=lambda f: f.chapter_number)
         if not chapters:
             continue
         recordings.append(Recording(
             clip_id=clip_id,
-            camera=CameraType.GOPRO,
+            camera=camera,
             chapters=chapters,
             sidecars=group["sidecars"],
         ))
