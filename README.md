@@ -204,4 +204,6 @@ src/clipwright/
 
 ## License
 
-MIT. See `LICENSE`.
+GPL-3.0-only. See `LICENSE`.
+
+Clipwright uses PyQt6, which is available under GPL v3 or a commercial license. GPL-3.0-only keeps the application license aligned with that dependency. If the GUI is later migrated to PySide6, a more permissive license could be reconsidered.

@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "clipwright"
 version = "0.1.2"
 description = "Desktop tool to prepare camera and video files for Linux editing workflows"
-license = { text = "MIT" }
+license = { text = "GPL-3.0-only" }
 requires-python = ">=3.11"
 dependencies = [
     "PyQt6>=6.6",
