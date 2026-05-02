@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import signal
 import sys
 import traceback
@@ -16,6 +17,21 @@ from clipwright.util.paths import cache_dir
 
 
 _crash_log = None
+
+
+def _configure_qt_platform():
+    """Prefer XCB on Wayland sessions where Qt Wayland is unstable."""
+    requested_platform = os.environ.get("CLIPWRIGHT_QT_PLATFORM")
+    if requested_platform:
+        os.environ["QT_QPA_PLATFORM"] = requested_platform
+        return
+
+    current_platform = os.environ.get("QT_QPA_PLATFORM", "")
+    has_xwayland = bool(os.environ.get("DISPLAY"))
+    is_wayland = os.environ.get("XDG_SESSION_TYPE") == "wayland" or "wayland" in current_platform
+
+    if is_wayland and has_xwayland:
+        os.environ["QT_QPA_PLATFORM"] = "xcb"
 
 
 def _enable_crash_logging():
@@ -53,6 +69,7 @@ def main():
     # Allow Ctrl+C from terminal to kill the app
     signal.signal(signal.SIGINT, signal.SIG_DFL)
 
+    _configure_qt_platform()
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_DontUseNativeDialogs, True)
 
     app = QApplication(sys.argv)
