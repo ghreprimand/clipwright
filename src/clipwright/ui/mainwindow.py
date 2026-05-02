@@ -13,7 +13,6 @@ from PyQt6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMainWindow,
-    QMessageBox,
     QPushButton,
     QRadioButton,
     QSplitter,
@@ -448,36 +447,35 @@ class MainWindow(QMainWindow):
         return rec.primary_file.path.parent
 
     def _confirm_conversion(self, recordings) -> bool:
-        needs_conversion = [r for r in recordings if r.needs_audio_conversion]
-        already_ok = len(recordings) - len(needs_conversion)
-        suffix = self.output_suffix_input.text()
-        conflict = self.conflict_combo.currentText()
+        from clipwright.ui.dialogs.convert_dialog import (
+            ConvertReviewDialog,
+            build_conversion_plans,
+        )
 
-        preview_lines = []
-        for rec in recordings[:6]:
+        suffix = self.output_suffix_input.text()
+        conflict_policy = self.conflict_combo.currentData()
+
+        destinations = []
+        for rec in recordings:
             dest = self._destination_for(rec)
             if dest is None:
                 return False
-            preview_lines.append(f"{rec.primary_file.path.name} -> {rec.primary_file.path.stem}{suffix}.mov")
-        if len(recordings) > 6:
-            preview_lines.append(f"...and {len(recordings) - 6} more")
+            destinations.append(dest)
 
-        message = (
-            f"Convert audio for {len(recordings)} file(s)?\n\n"
-            f"Needs conversion: {len(needs_conversion)}\n"
-            f"Already compatible: {already_ok}\n"
-            f"Destination mode: {self._output_mode_label()}\n"
-            f"Conflict policy: {conflict}\n\n"
-            + "\n".join(preview_lines)
+        plans = build_conversion_plans(
+            recordings,
+            destinations,
+            suffix,
+            conflict_policy,
         )
-        reply = QMessageBox.question(
+        dialog = ConvertReviewDialog(
+            recordings,
+            plans,
+            self._output_mode_label(),
+            self.conflict_combo.currentText(),
             self,
-            "Convert Audio",
-            message,
-            QMessageBox.StandardButton.Cancel | QMessageBox.StandardButton.Ok,
-            QMessageBox.StandardButton.Ok,
         )
-        return reply == QMessageBox.StandardButton.Ok
+        return dialog.exec() == ConvertReviewDialog.DialogCode.Accepted
 
     # --- Actions ---
 
