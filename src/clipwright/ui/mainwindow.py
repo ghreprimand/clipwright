@@ -195,6 +195,7 @@ class MainWindow(QMainWindow):
 
     def _setup_toolbar(self):
         toolbar = QToolBar("Main Toolbar")
+        toolbar.setObjectName("main_toolbar")
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
 
@@ -389,7 +390,7 @@ class MainWindow(QMainWindow):
             return None
         return Path(folder)
 
-    def _save_destination_settings(self):
+    def _save_destination_settings(self, *args):
         mode = self.output_mode_combo.currentData()
         self.config.set("output_mode", mode)
         if mode == "custom":
