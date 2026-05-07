@@ -162,6 +162,9 @@ class MainWindow(QMainWindow):
         self._setup_operation_tabs(layout)
         layout.addWidget(self.v_splitter)
 
+        # Persistent action bar — always visible, prominent Convert button
+        self._setup_action_bar(layout)
+
         # Connect signals
         self.file_panel.recording_selected.connect(self.preview_panel.show_recording)
         self.file_panel.recording_selected.connect(
@@ -182,6 +185,48 @@ class MainWindow(QMainWindow):
         self.file_panel.transcode_requested.connect(self._transcode_recordings)
         self.file_panel.trim_requested.connect(self._trim_recording)
         self.file_panel.rename_requested.connect(self._rename_recordings)
+
+    def _setup_action_bar(self, layout: QVBoxLayout) -> None:
+        """Add a persistent bottom action bar with a prominent Convert button."""
+        self.action_bar = QHBoxLayout()
+        self.action_bar.setContentsMargins(8, 6, 8, 6)
+        self.action_bar.setSpacing(12)
+
+        # "Convert Audio" — the primary action, always visible
+        self.convert_primary_button = QPushButton("▶  Convert Audio")
+        self.convert_primary_button.setObjectName("convertPrimaryButton")
+        self.convert_primary_button.setMinimumHeight(36)
+        self.convert_primary_button.setStyleSheet("""
+            QPushButton#convertPrimaryButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 14px;
+            }
+            QPushButton#convertPrimaryButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton#convertPrimaryButton:pressed {
+                background-color: #0D47A1;
+            }
+            QPushButton#convertPrimaryButton:disabled {
+                background-color: #B0BEC5;
+                color: #78909C;
+            }
+        """)
+        self.convert_primary_button.setMaximumHeight(42)
+        self.convert_primary_button.setEnabled(False)
+        self.convert_primary_button.clicked.connect(self._convert_selected)
+        self.action_bar.addWidget(self.convert_primary_button, stretch=1)
+
+        # Status hint label
+        self.action_bar_hint = QLabel("Select recordings to convert")
+        self.action_bar_hint.setStyleSheet("color: gray; font-size: 12px;")
+        self.action_bar.addWidget(self.action_bar_hint)
+
+        layout.addLayout(self.action_bar)
 
     def _setup_toolbar(self):
         toolbar = QToolBar("Main Toolbar")
@@ -447,6 +492,18 @@ class MainWindow(QMainWindow):
             self.transcode_button.setEnabled(has_selection)
             self.trim_button.setEnabled(has_selection)
             self.rename_button.setEnabled(has_selection)
+
+        # --- Persistent action bar ---
+        if hasattr(self, "convert_primary_button") and hasattr(self, "action_bar_hint"):
+            has_selection = selected_count > 0
+            self.convert_primary_button.setEnabled(has_selection)
+            if has_selection:
+                needs_audio = sum(1 for rec in selected if rec.needs_audio_conversion)
+                self.action_bar_hint.setText(
+                    f"{selected_count} selected — {needs_audio} need conversion"
+                )
+            else:
+                self.action_bar_hint.setText("Select recordings to convert")
 
     def _restore_geometry(self):
         from PyQt6.QtCore import QByteArray

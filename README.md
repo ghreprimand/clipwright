@@ -159,7 +159,7 @@ Or from the checkout:
 ./clipwright.sh
 ```
 
-The launcher clears inherited `QT_PLUGIN_PATH` so PyQt6 uses its bundled Qt plugins instead of accidentally mixing with system Qt plugins.
+The launcher clears inherited `QT_PLUGIN_PATH` and `CLIPWRIGHT_QT_PLATFORM` so PyQt6 uses its bundled Qt plugins and auto-detects the display backend (Wayland or X11).
 
 ## Development
 

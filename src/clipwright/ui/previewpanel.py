@@ -8,6 +8,7 @@ from pathlib import Path
 from PyQt6.QtCore import QRunnable, Qt, QThreadPool, pyqtSignal, QObject
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
+    QFrame,
     QFormLayout,
     QGroupBox,
     QLabel,
@@ -31,6 +32,7 @@ _CAMERA_LABELS = {
 class PreviewPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._has_preview = False
         self._setup_ui()
 
     def _setup_ui(self):
@@ -42,9 +44,10 @@ class PreviewPanel(QWidget):
         self.thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.thumbnail_label.setMinimumHeight(200)
         self.thumbnail_label.setStyleSheet(
-            "background-color: #1a1a2e; border-radius: 6px;"
+            "background-color: #1a1a2e; border-radius: 6px; color: #78909c;"
         )
         self.thumbnail_label.setText("Select a recording to preview")
+        self.thumbnail_label.setHidden(True)  # hidden by default when empty
         layout.addWidget(self.thumbnail_label)
 
         # Metadata scroll area
@@ -107,6 +110,10 @@ class PreviewPanel(QWidget):
     def show_recording(self, recording: Recording):
         """Update the panel to show info about the given recording."""
         mf = recording.primary_file
+        self._has_preview = True
+
+        # Show thumbnail area
+        self.thumbnail_label.setHidden(False)
 
         # File info
         self.lbl_filename.setText(mf.path.name)

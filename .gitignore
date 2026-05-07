@@ -9,3 +9,4 @@ build/
 *.mov
 *.mp4
 .cache/
+.archon/

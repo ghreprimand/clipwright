@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PyQt6.QtCore import QEvent, QObject, QRunnable, Qt, QThreadPool, pyqtSignal
-from PyQt6.QtGui import QAction, QDragEnterEvent, QDragMoveEvent, QDropEvent
+from PyQt6.QtCore import QEvent, QObject, QRunnable, QRectF, Qt, QThreadPool, pyqtSignal
+from PyQt6.QtGui import QAction, QDragEnterEvent, QDragMoveEvent, QDropEvent, QPainter, QColor, QFont
 from PyQt6.QtWidgets import (
     QAbstractItemView,
+    QFrame,
     QHeaderView,
     QLabel,
     QMenu,
@@ -29,6 +30,167 @@ _CAMERA_LABELS = {
 }
 
 
+class EmptyStateWidget(QFrame):
+    """Prominent empty-state placeholder shown when no recordings are loaded.
+
+    Displays a centered, visually engaging message with a camera icon,
+    primary instructions, and secondary tips — far more inviting than a
+    single-line status bar.
+    """
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._icon_size = 48
+        self._drawn = False
+        self._setup_ui()
+        self._init_style()
+
+    def _init_style(self):
+        """Configure the frame's alignment and shape."""
+        # Alignment handled by layout alignment and stretch
+        self.setFrameShape(QFrame.Shape.NoFrame)
+
+    # ---- Painting a simple camera icon ----
+
+    def _paint_icon(self, painter: QPainter, rect: QRectF):
+        """Draw a minimal camera outline icon in the top area."""
+        cx = rect.center().x()
+        top_y = rect.top() + (rect.height() * 0.06)
+        w, h = self._icon_size, self._icon_size * 0.75
+
+        painter.setRenderHints(
+            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing
+        )
+
+        # Camera body
+        painter.setPen(QColor("#b0bec5"))
+        painter.setBrush(QColor(255, 255, 255, 0))
+        body_w = w
+        body_h = h * 0.7
+        body_x = cx - body_w / 2
+        body_y = top_y + h * 0.15
+        r = 4
+        painter.drawRoundedRect(
+            body_x, body_y, body_w, body_h, r, r
+        )
+
+        # Top bump (viewfinder)
+        bump_w = w * 0.35
+        bump_h = h * 0.3
+        painter.drawRoundedRect(
+            cx - bump_w / 2, top_y, bump_w, bump_h, 3, 3
+        )
+
+        # Lens circle
+        lens_r = w * 0.17
+        painter.setPen(QColor("#78909c"))
+        painter.drawEllipse(
+            int(cx - lens_r), int(body_y + body_h * 0.15),
+            int(lens_r * 2), int(lens_r * 2),
+        )
+
+        # Lens highlight
+        hl_r = lens_r * 0.35
+        painter.setPen(QColor("#90a4ae"))
+        painter.drawEllipse(
+            int(cx - hl_r + 2), int(body_y + body_h * 0.15 - 2),
+            int(hl_r * 2), int(hl_r * 2),
+        )
+
+    def paintEvent(self, event):
+        # Custom QPainter painting is incompatible with Qt6 Wayland backing store.
+        # The widget's label-based UI (emoji icon, main_label, secondary_label)
+        # provides all the visual content we need.
+        super().paintEvent(event)
+
+    # ---- UI ----
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(8)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        # Icon area
+        self.icon_label = QLabel("📁")
+        self.icon_label.setFixedSize(self._icon_size + 16, self._icon_size + 16)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.icon_label.setStyleSheet(
+            "font-size: 36px; background: transparent;"
+        )
+        layout.addWidget(self.icon_label, alignment=Qt.AlignmentFlag.AlignCenter)
+
+        # Main instruction
+        self.main_label = QLabel("Drop video files here to get started")
+        self.main_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.main_label.setStyleSheet(
+            "font-size: 14px; font-weight: bold; color: #37474f; background: transparent;"
+        )
+        self.main_label.setWordWrap(True)
+        layout.addWidget(self.main_label)
+
+        # Subtext
+        self.sub_label = QLabel(
+            "Supports MP4, MOV, MTS, MP3 and other common media formats"
+        )
+        self.sub_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.sub_label.setStyleSheet(
+            "font-size: 12px; color: #78909c; background: transparent;"
+        )
+        self.sub_label.setWordWrap(True)
+        layout.addWidget(self.sub_label)
+
+        # Tip row
+        self.tip_label = QLabel(
+            "💡 "
+            "Drag-and-drop • File → Add Files (Ctrl+O) • File → Add Folder (Ctrl+Shift+O)"
+        )
+        self.tip_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.tip_label.setStyleSheet(
+            "font-size: 11px; color: #90a4ae; background: transparent;"
+        )
+        self.tip_label.setWordWrap(True)
+        layout.addWidget(self.tip_label)
+
+        # Add stretch below so the content sits centered vertically
+        layout.addStretch(1)
+
+    def show(self):
+        super().show()
+        self._drawn = True
+        self.update()
+
+
+class DropZoneOverlay(QFrame):
+    """Highlighted overlay shown during drag-overs when empty.
+
+    When the user drags files over the file panel while it's empty,
+    a translucent green highlight appears to confirm the drop zone.
+    """
+
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._highlighted = False
+        self.setStyleSheet("""
+            DropZoneOverlay {
+                background: rgba(33, 150, 243, 0.08);
+                border: 3px dashed rgba(33, 150, 243, 0.45);
+                border-radius: 6px;
+            }
+        """)
+        self.hide()
+
+    def highlight(self):
+        if not self._highlighted:
+            self._highlighted = True
+            self.show()
+
+    def unhighlight(self):
+        if self._highlighted:
+            self._highlighted = False
+            self.hide()
+
+
 class FilePanel(QWidget):
     recording_selected = pyqtSignal(object)  # Recording
     recordings_loaded = pyqtSignal(int)
@@ -43,7 +205,6 @@ class FilePanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.recordings: list[Recording] = []
-        self.setAcceptDrops(True)
         self._setup_ui()
 
     def _setup_ui(self):
@@ -58,6 +219,12 @@ class FilePanel(QWidget):
         self.scan_progress.setMaximumHeight(16)
         self.scan_progress.hide()
         layout.addWidget(self.scan_progress)
+
+        # Container that holds tree + overlay — so overlay can sit on top
+        self._tree_container = QWidget()
+        self._tree_layout = QVBoxLayout(self._tree_container)
+        self._tree_layout.setContentsMargins(0, 0, 0, 0)
+        self._tree_layout.setSpacing(0)
 
         self.tree = QTreeWidget()
         self.tree.setAcceptDrops(True)
@@ -78,7 +245,79 @@ class FilePanel(QWidget):
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
 
-        layout.addWidget(self.tree)
+        self._tree_layout.addWidget(self.tree)
+
+        # Empty state widget (shown when no recordings)
+        self.empty_state = EmptyStateWidget()
+        self.empty_state.hide()
+        self._tree_layout.addWidget(self.empty_state)
+
+        # Drop-zone overlay (shown during drags when empty)
+        self._drop_overlay = DropZoneOverlay()
+        self._drop_overlay.setParent(self._tree_container)
+        self._drop_overlay.hide()
+
+        layout.addWidget(self._tree_container)
+
+        # Show empty state initially
+        self.empty_state.show()
+
+        # Install event filter on the viewport for drag highlighting
+        self.tree.viewport().installEventFilter(self)
+
+    # ---- Empty-state visibility ----
+
+    def _set_empty(self, empty: bool):
+        """Show or hide the empty-state widget and overlay."""
+        self.empty_state.setVisible(empty)
+        self.scan_progress.hide()
+        if empty:
+            self.header_label.setText(
+                "Drop video files or folders here"
+            )
+            self.header_label.setStyleSheet(
+                "font-weight: bold; font-size: 13px; color: #546e7a; font-style: italic;"
+            )
+        else:
+            self.header_label.setStyleSheet("font-weight: bold; font-size: 13px;")
+
+    def _position_drop_overlay(self):
+        """Make the overlay fill the tree viewport area."""
+        if not self.empty_state.isVisible():
+            self._drop_overlay.hide()
+            return
+        vp = self.tree.viewport()
+        rect = vp.geometry()
+        self._drop_overlay.setGeometry(rect)
+
+    # ---- Drag-and-drop ----
+
+    def _on_tree_drag_enter(self, event: QDragEnterEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            if self.empty_state.isVisible():
+                self._drop_overlay.highlight()
+                self._position_drop_overlay()
+
+    def _on_tree_drag_move(self, event: QDragMoveEvent):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+
+    def _on_tree_drag_leave(self, _event):
+        self._drop_overlay.unhighlight()
+
+    def _on_tree_drop(self, event: QDropEvent):
+        self._drop_overlay.unhighlight()
+        paths = [
+            Path(url.toLocalFile())
+            for url in event.mimeData().urls()
+            if url.isLocalFile()
+        ]
+        if paths:
+            self.load_paths(paths, append=True, label=f"Adding {len(paths)} item(s)...")
+            event.acceptProposedAction()
+
+    # ---- Public API ----
 
     def load_directory(self, path: Path):
         """Scan a directory in a background thread and populate the tree."""
@@ -124,6 +363,7 @@ class FilePanel(QWidget):
         if dji:
             parts.append(f"{dji} DJI")
         self.header_label.setText(" | ".join(parts))
+        self._set_empty(False)
         self.recordings_loaded.emit(count)
 
     def _on_scan_error(self, error_msg: str):
@@ -160,6 +400,8 @@ class FilePanel(QWidget):
                     item.addChild(child)
 
             self.tree.addTopLevelItem(item)
+
+        self._position_drop_overlay()
 
     def _show_context_menu(self, position):
         """Show right-click context menu on file tree items."""
@@ -276,7 +518,7 @@ class FilePanel(QWidget):
     def clear(self):
         self.recordings = []
         self.tree.clear()
-        self.header_label.setText("Drop video files or folders here")
+        self._set_empty(True)
         self.recordings_loaded.emit(0)
 
     def _row_selected_recordings(self) -> list[Recording]:
@@ -287,34 +529,22 @@ class FilePanel(QWidget):
                 row_selected.append(rec)
         return row_selected
 
-    def dragEnterEvent(self, event: QDragEnterEvent):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dragMoveEvent(self, event: QDragMoveEvent):
-        if event.mimeData().hasUrls():
-            event.acceptProposedAction()
-
-    def dropEvent(self, event: QDropEvent):
-        paths = [
-            Path(url.toLocalFile())
-            for url in event.mimeData().urls()
-            if url.isLocalFile()
-        ]
-        if paths:
-            self.load_paths(paths, append=True, label=f"Adding {len(paths)} item(s)...")
-            event.acceptProposedAction()
+    # ---- Event filter for drag highlighting ----
 
     def eventFilter(self, watched, event):
         if watched is self.tree.viewport():
-            if event.type() == QEvent.Type.DragEnter and event.mimeData().hasUrls():
-                event.acceptProposedAction()
+            etype = event.type()
+            if etype == QEvent.Type.DragEnter:
+                self._on_tree_drag_enter(event)
                 return True
-            if event.type() == QEvent.Type.DragMove and event.mimeData().hasUrls():
-                event.acceptProposedAction()
+            if etype == QEvent.Type.DragMove:
+                self._on_tree_drag_move(event)
                 return True
-            if event.type() == QEvent.Type.Drop and event.mimeData().hasUrls():
-                self.dropEvent(event)
+            if etype == QEvent.Type.DragLeave:
+                self._on_tree_drag_leave(event)
+                return True
+            if etype == QEvent.Type.Drop:
+                self._on_tree_drop(event)
                 return True
         return super().eventFilter(watched, event)
 

@@ -45,9 +45,32 @@ class ThumbnailGrid(QScrollArea):
 
         self._cards: list[ThumbnailCard] = []
 
+        # Empty-state label shown when no recordings
+        self._empty_label = QLabel()
+        self._empty_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._empty_label.setStyleSheet(
+            "color: #78909c; font-size: 13px; background: transparent;"
+        )
+        self._empty_label.setText("No recordings loaded — add files or folders to get started")
+        self._empty_label.setHidden(True)
+
+        # Add empty label to the flow layout first
+        self._flow_layout.addWidget(self._empty_label)
+
     def set_recordings(self, recordings: list[Recording]):
         """Populate the grid with thumbnails for the given recordings."""
-        # Clear existing
+        if not recordings:
+            self._empty_label.setHidden(False)
+            # Clear existing cards from the layout
+            for card in self._cards:
+                self._flow_layout.removeWidget(card)
+                card.deleteLater()
+            self._cards.clear()
+            return
+
+        self._empty_label.setHidden(True)
+
+        # Clear existing cards
         for card in self._cards:
             self._flow_layout.removeWidget(card)
             card.deleteLater()
