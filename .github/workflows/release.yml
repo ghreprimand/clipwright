@@ -19,6 +19,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Upgrade pip
+        run: python3 -m pip install --upgrade pip
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
