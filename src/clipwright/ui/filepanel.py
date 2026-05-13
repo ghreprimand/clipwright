@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PyQt6.QtCore import QEvent, QObject, QRunnable, QRectF, Qt, QThreadPool, pyqtSignal
-from PyQt6.QtGui import QAction, QDragEnterEvent, QDragMoveEvent, QDropEvent, QPainter, QColor, QFont
+from PyQt6.QtGui import QAction, QDragEnterEvent, QDragMoveEvent, QDropEvent, QPainter, QColor
 from PyQt6.QtWidgets import (
     QAbstractItemView,
     QFrame,

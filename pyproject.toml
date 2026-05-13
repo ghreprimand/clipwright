@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "clipwright"
-version = "0.1.2"
+version = "1.0.0"
 description = "Desktop tool to prepare camera and video files for Linux editing workflows"
 license = { text = "GPL-3.0-only" }
 requires-python = ">=3.11"
@@ -14,6 +14,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "build",
+    "pip-audit",
     "pytest",
     "ruff",
 ]

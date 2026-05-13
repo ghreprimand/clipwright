@@ -22,14 +22,25 @@ rm -rf "$APPDIR" build/
 # --- Download standalone Python ---
 PYTHON_VERSION="3.11.15"
 PYTHON_BUILD="20260320"
-PYTHON_URL="https://github.com/indygreg/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${ARCH}-unknown-linux-gnu-install_only.tar.gz"
+PYTHON_URL="https://github.com/astral-sh/python-build-standalone/releases/download/${PYTHON_BUILD}/cpython-${PYTHON_VERSION}+${PYTHON_BUILD}-${ARCH}-unknown-linux-gnu-install_only.tar.gz"
 PYTHON_TAR="build/python-standalone.tar.gz"
+PYTHON_SHA256="413d40229a362e3b7b676b0dedad1eb543b0a1a5337dabf5b42818cdc4439911"
+
+download_verified() {
+    local url="$1"
+    local output="$2"
+    local sha256="$3"
+
+    if [ ! -f "$output" ]; then
+        echo "==> Downloading $(basename "$output")..."
+        curl -L --fail --proto '=https' --tlsv1.2 -o "$output" "$url"
+    fi
+
+    printf '%s  %s\n' "$sha256" "$output" | sha256sum -c -
+}
 
 mkdir -p build
-if [ ! -f "$PYTHON_TAR" ]; then
-    echo "==> Downloading standalone Python ${PYTHON_VERSION}..."
-    curl -L --fail -o "$PYTHON_TAR" "$PYTHON_URL"
-fi
+download_verified "$PYTHON_URL" "$PYTHON_TAR" "$PYTHON_SHA256"
 
 # --- Create AppDir structure ---
 echo "==> Creating AppDir..."
@@ -84,12 +95,11 @@ chmod +x "$APPDIR/AppRun"
 
 # --- Download appimagetool and build ---
 APPIMAGETOOL="build/appimagetool"
-if [ ! -f "$APPIMAGETOOL" ]; then
-    echo "==> Downloading appimagetool..."
-    curl -L --fail -o "$APPIMAGETOOL" \
-        "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-    chmod +x "$APPIMAGETOOL"
-fi
+APPIMAGETOOL_VERSION="1.9.1"
+APPIMAGETOOL_SHA256="ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
+APPIMAGETOOL_URL="https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+download_verified "$APPIMAGETOOL_URL" "$APPIMAGETOOL" "$APPIMAGETOOL_SHA256"
+chmod +x "$APPIMAGETOOL"
 
 echo "==> Packaging AppImage..."
 VERSIONED="${APP_NAME}-${VERSION}-${ARCH}.AppImage"

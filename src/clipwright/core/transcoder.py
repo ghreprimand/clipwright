@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -175,13 +174,15 @@ def transcode(
     Returns:
         Path to the output file.
     """
-    ffmpeg_bin = shutil.which("ffmpeg")
-    if not ffmpeg_bin:
-        raise FileNotFoundError("ffmpeg not found on PATH")
+    ffmpeg_bin = ffmpeg._find_binary("ffmpeg")
 
-    import subprocess
-
-    cmd = [ffmpeg_bin, "-y"]
+    cmd = [
+        ffmpeg_bin,
+        "-y",
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel", "error",
+    ]
 
     # Input seeking (before -i for fast seek)
     if trim_start is not None and trim_start > 0:
@@ -204,19 +205,7 @@ def transcode(
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
-    if on_progress and duration_sec > 0:
-        ffmpeg._parse_progress(proc, duration_sec, on_progress)
-
-    stdout, stderr = proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"Transcode failed: {stderr}")
+    ffmpeg.run_with_progress(cmd, duration_sec, on_progress, "Transcode failed")
 
     return output_path
 

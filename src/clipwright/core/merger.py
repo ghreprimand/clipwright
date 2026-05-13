@@ -7,11 +7,14 @@ from typing import Callable
 
 from clipwright.core import ffmpeg
 from clipwright.core.mediafile import Recording
+from clipwright.core.outputs import resolve_output_path
 
 
 def merge_chapters(
     recording: Recording,
     output_dir: Path,
+    conflict_policy: str = "rename",
+    output_path: Path | None = None,
     on_progress: Callable[[float], None] | None = None,
 ) -> Path:
     """Merge a multi-chapter recording into a single file.
@@ -32,7 +35,11 @@ def merge_chapters(
     output_dir.mkdir(parents=True, exist_ok=True)
     stem = recording.primary_file.path.stem
     ext = recording.primary_file.path.suffix
-    output_path = output_dir / f"{stem}_merged{ext}"
+    if output_path is None:
+        output_path = resolve_output_path(
+            output_dir / f"{stem}_merged{ext}",
+            conflict_policy=conflict_policy,
+        )
 
     chapter_paths = [ch.path for ch in recording.chapters]
 

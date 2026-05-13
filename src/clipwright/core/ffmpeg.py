@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+from collections import deque
 from pathlib import Path
 from typing import Callable
 
@@ -54,23 +55,16 @@ def convert_audio(
     cmd = [
         ffmpeg,
         "-y",  # overwrite output
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel", "error",
         "-i", str(input_path),
         "-c:v", "copy",
         "-c:a", audio_codec,
         "-progress", "pipe:1",
         str(output_path),
     ]
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if on_progress and duration_sec > 0:
-        _parse_progress(proc, duration_sec, on_progress)
-    stdout, stderr = proc.communicate()
-    if proc.returncode != 0:
-        raise RuntimeError(f"ffmpeg conversion failed: {stderr}")
+    run_with_progress(cmd, duration_sec, on_progress, "ffmpeg conversion failed")
     return output_path
 
 
@@ -96,6 +90,9 @@ def concat(
         cmd = [
             ffmpeg,
             "-y",
+            "-nostdin",
+            "-hide_banner",
+            "-loglevel", "error",
             "-f", "concat",
             "-safe", "0",
             "-i", concat_file,
@@ -103,17 +100,7 @@ def concat(
             "-progress", "pipe:1",
             str(output_path),
         ]
-        proc = subprocess.Popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
-        if on_progress and duration_sec > 0:
-            _parse_progress(proc, duration_sec, on_progress)
-        stdout, stderr = proc.communicate()
-        if proc.returncode != 0:
-            raise RuntimeError(f"ffmpeg concat failed: {stderr}")
+        run_with_progress(cmd, duration_sec, on_progress, "ffmpeg concat failed")
     finally:
         Path(concat_file).unlink(missing_ok=True)
 
@@ -130,6 +117,9 @@ def extract_thumbnail(
     cmd = [
         ffmpeg,
         "-y",
+        "-nostdin",
+        "-hide_banner",
+        "-loglevel", "error",
         "-ss", timestamp,
         "-i", str(path),
         "-vframes", "1",
@@ -147,14 +137,48 @@ def extract_thumbnail(
 _TIME_RE = re.compile(r"out_time_us=(\d+)")
 
 
+def run_with_progress(
+    cmd: list[str],
+    duration_sec: float,
+    on_progress: Callable[[float], None] | None,
+    error_prefix: str,
+) -> None:
+    """Run ffmpeg, drain combined output, and parse progress without blocking."""
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    duration_us = duration_sec * 1_000_000
+    output_tail: deque[str] = deque(maxlen=80)
+
+    if proc.stdout is not None:
+        for line in proc.stdout:
+            output_tail.append(line)
+            match = _TIME_RE.search(line)
+            if match and on_progress and duration_us > 0:
+                time_us = int(match.group(1))
+                pct = min(100.0, (time_us / duration_us) * 100.0)
+                on_progress(pct)
+
+    return_code = proc.wait()
+    if return_code != 0:
+        output = "".join(output_tail).strip()
+        detail = f": {output}" if output else ""
+        raise RuntimeError(f"{error_prefix}{detail}")
+
+
 def _parse_progress(
-    proc: subprocess.Popen,
+    lines,
     duration_sec: float,
     on_progress: Callable[[float], None],
 ) -> None:
-    """Parse ffmpeg -progress pipe:1 output and call on_progress with 0.0-100.0."""
+    """Parse ffmpeg -progress lines and call on_progress with 0.0-100.0."""
     duration_us = duration_sec * 1_000_000
-    for line in proc.stdout:
+    if duration_us <= 0:
+        return
+    for line in lines:
         match = _TIME_RE.search(line)
         if match:
             time_us = int(match.group(1))

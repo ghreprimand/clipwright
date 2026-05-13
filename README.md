@@ -170,6 +170,8 @@ ruff check src
 python -m py_compile $(rg --files src -g '*.py')
 ```
 
+Release builds are documented in [`docs/release.md`](docs/release.md).
+
 The Python package is `clipwright`. Runtime settings are stored under `~/.config/clipwright/`, and thumbnails are cached under `~/.cache/clipwright/`.
 
 Settings currently cover the default output folder, convert-next-to-original behavior, parallel job count, auto-open completed output folders, and the default rename template.

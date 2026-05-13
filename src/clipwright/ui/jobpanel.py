@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 from clipwright.core.converter import convert_recording
 from clipwright.core.merger import merge_chapters
 from clipwright.core.mediafile import Recording
+from clipwright.core.outputs import resolve_output_path
 from clipwright.core.transcoder import TranscodeSettings, transcode
 from clipwright.util.config import Config
 
@@ -83,11 +84,21 @@ class JobPanel(QWidget):
 
     def submit_merges(self, recordings: list[Recording], output_dir: Path):
         """Submit recordings for chapter merging."""
+        reserved: set[Path] = set()
+        conflict_policy = self._conflict_policy()
         for rec in recordings:
             card = JobCard(rec.display_name, "merge")
             self.job_layout.addWidget(card)
 
-            runner = MergeRunner(rec, output_dir)
+            mf = rec.primary_file
+            output_path = resolve_output_path(
+                output_dir / f"{mf.path.stem}_merged{mf.path.suffix}",
+                conflict_policy=conflict_policy,
+                reserved=reserved,
+            )
+            reserved.add(output_path.resolve())
+
+            runner = MergeRunner(rec, output_dir, output_path, conflict_policy)
             runner.signals = JobSignals()
             runner.signals.progress.connect(card.update_progress)
             runner.signals.finished.connect(card.mark_done)
@@ -107,11 +118,21 @@ class JobPanel(QWidget):
         settings: TranscodeSettings,
     ):
         """Submit recordings for transcoding."""
+        reserved: set[Path] = set()
+        conflict_policy = self._conflict_policy()
         for rec in recordings:
             card = JobCard(rec.display_name, "transcode")
             self.job_layout.addWidget(card)
 
-            runner = TranscodeRunner(rec, output_dir, settings)
+            mf = rec.primary_file
+            output_path = resolve_output_path(
+                output_dir / f"{mf.path.stem}_transcoded{settings.container}",
+                conflict_policy=conflict_policy,
+                reserved=reserved,
+            )
+            reserved.add(output_path.resolve())
+
+            runner = TranscodeRunner(rec, output_path, settings)
             runner.signals = JobSignals()
             runner.signals.progress.connect(card.update_progress)
             runner.signals.finished.connect(card.mark_done)
@@ -135,7 +156,13 @@ class JobPanel(QWidget):
         card = JobCard(recording.display_name, "trim")
         self.job_layout.addWidget(card)
 
-        runner = TrimRunner(recording, output_dir, trim_start, trim_end)
+        mf = recording.primary_file
+        output_path = resolve_output_path(
+            output_dir / f"{mf.path.stem}_trimmed.mov",
+            conflict_policy=self._conflict_policy(),
+        )
+
+        runner = TrimRunner(recording, output_path, trim_start, trim_end)
         runner.signals = JobSignals()
         runner.signals.progress.connect(card.update_progress)
         runner.signals.finished.connect(card.mark_done)
@@ -155,6 +182,11 @@ class JobPanel(QWidget):
     def _maybe_open_output_folder(self, output_path: str):
         if self.config and self.config.get("open_output_folder") == "true":
             subprocess.Popen(["xdg-open", str(Path(output_path).parent)])
+
+    def _conflict_policy(self) -> str:
+        if not self.config:
+            return "rename"
+        return self.config.get("conflict_policy") or "rename"
 
     def _update_header(self):
         if self._active_jobs > 0:
@@ -281,10 +313,18 @@ class ConversionRunner(QRunnable):
 
 
 class MergeRunner(QRunnable):
-    def __init__(self, recording: Recording, output_dir: Path):
+    def __init__(
+        self,
+        recording: Recording,
+        output_dir: Path,
+        output_path: Path,
+        conflict_policy: str = "rename",
+    ):
         super().__init__()
         self.recording = recording
         self.output_dir = output_dir
+        self.output_path = output_path
+        self.conflict_policy = conflict_policy
         self.signals: JobSignals | None = None
 
     def run(self):
@@ -292,6 +332,8 @@ class MergeRunner(QRunnable):
             result = merge_chapters(
                 self.recording,
                 self.output_dir,
+                conflict_policy=self.conflict_policy,
+                output_path=self.output_path,
                 on_progress=lambda pct: (
                     self.signals.progress.emit(pct, "Merging...") if self.signals else None
                 ),
@@ -304,23 +346,20 @@ class MergeRunner(QRunnable):
 
 
 class TranscodeRunner(QRunnable):
-    def __init__(self, recording: Recording, output_dir: Path, settings: TranscodeSettings):
+    def __init__(self, recording: Recording, output_path: Path, settings: TranscodeSettings):
         super().__init__()
         self.recording = recording
-        self.output_dir = output_dir
+        self.output_path = output_path
         self.settings = settings
         self.signals: JobSignals | None = None
 
     def run(self):
         try:
             mf = self.recording.primary_file
-            stem = mf.path.stem
-            ext = self.settings.container
-            output_path = self.output_dir / f"{stem}_transcoded{ext}"
 
             result = transcode(
                 mf.path,
-                output_path,
+                self.output_path,
                 self.settings,
                 duration_sec=self.recording.total_duration,
                 on_progress=lambda pct: (
@@ -338,13 +377,13 @@ class TrimRunner(QRunnable):
     def __init__(
         self,
         recording: Recording,
-        output_dir: Path,
+        output_path: Path,
         trim_start: float | None,
         trim_end: float | None,
     ):
         super().__init__()
         self.recording = recording
-        self.output_dir = output_dir
+        self.output_path = output_path
         self.trim_start = trim_start
         self.trim_end = trim_end
         self.signals: JobSignals | None = None
@@ -354,9 +393,6 @@ class TrimRunner(QRunnable):
             from clipwright.core.transcoder import TranscodeSettings, VideoCodec, AudioCodec, Container
 
             mf = self.recording.primary_file
-            stem = mf.path.stem
-            output_path = self.output_dir / f"{stem}_trimmed.mov"
-
             # Copy streams (no re-encode) for fast trim
             settings = TranscodeSettings(
                 video_codec=VideoCodec.COPY,
@@ -372,7 +408,7 @@ class TrimRunner(QRunnable):
 
             result = transcode(
                 mf.path,
-                output_path,
+                self.output_path,
                 settings,
                 duration_sec=duration,
                 trim_start=self.trim_start,

@@ -8,6 +8,7 @@ from typing import Callable
 
 from clipwright.core import ffmpeg
 from clipwright.core.mediafile import Recording
+from clipwright.core.outputs import resolve_output_path
 
 
 def convert_recording(
@@ -38,7 +39,7 @@ def convert_recording(
     if recording.needs_merge:
         # Use clip ID for merged files
         stem = f"{primary.path.stem}_merged"
-    output_path = _resolve_output_path(
+    output_path = resolve_output_path(
         output_dir / f"{stem}{output_suffix}.mov",
         conflict_policy=conflict_policy,
     )
@@ -97,20 +98,6 @@ def convert_recording(
 
     _report(on_progress, 100, "Done")
     return output_path
-
-
-def _resolve_output_path(path: Path, conflict_policy: str) -> Path:
-    if conflict_policy == "overwrite" or not path.exists():
-        return path
-
-    stem = path.stem
-    suffix = path.suffix
-    for i in range(1, 10_000):
-        candidate = path.with_name(f"{stem}-{i}{suffix}")
-        if not candidate.exists():
-            return candidate
-
-    raise RuntimeError(f"Could not find available output filename for {path}")
 
 
 def _report(
